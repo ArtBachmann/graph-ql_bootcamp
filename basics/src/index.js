@@ -21,23 +21,48 @@ const users = [{
 }]
 
 const posts = [{
-  id: '1',
+  id: '11',
   title: 'Good morning!',
   body: 'Beautiful morning today.',
   published: true,
   author: '1'
 }, {
-  id: '2',
+  id: '22',
   title: 'Good afternoon!',
   body: 'Beautiful afternoon today.',
   published: false,
   author: '1'
 }, {
-  id: '3',
+  id: '33',
   title: 'Good evening!',
   body: '',
   published: true,
   author: '2'
+}]
+
+// comments are associated with posts post:'33' means that 
+// this comment comments post with id 33 and in resolver 
+// look like >>> parent.post
+const comments = [{
+  id: '1',
+  text: 'Comment number 1',
+  author: '1',
+  post: '11'
+}, {
+  id: '2',
+  text: 'Comment number 2',
+  author: '2',
+  post: '22'
+}, {
+  id: '3',
+  text: 'Comment number 3',
+  author: '2',
+  post: '33'
+}, {
+  id: '4',
+  text: 'Comment number 4',
+  author: '3',
+  post: '22'
 }]
 
 // Type definitions (schema)
@@ -48,6 +73,7 @@ const typeDefs = `
   type Query {    
     users(query: String): [User!]!
     posts(query: String): [Post!]!
+    comments: [Comment!]!
     me: User!
     post: Post!   
   }
@@ -58,6 +84,7 @@ const typeDefs = `
     email: String!
     age: Int
     posts: [Post!]!
+    comments: [Comment!]! 
   }  
 
   type Post {
@@ -66,6 +93,14 @@ const typeDefs = `
     body: String!
     published: Boolean!
     author: User!
+    comments: [Comment!]!
+  }
+
+  type Comment {
+    id: ID!
+    text: String!
+    author: User!
+    post: Post!
   }
 `
 
@@ -101,6 +136,10 @@ const resolvers = {
       // })
     },
 
+    comments(parent, args, ctx, info) {
+      return comments
+    },
+
     me() {
       return {
         id: '123asd',
@@ -122,10 +161,22 @@ const resolvers = {
 
   Post: {
     author(parent, args, ctx, info) {
-      return user.find((user) => {  // find() searches until first match
+      return users.find((user) => {
+        // find() searches until first match
         // user.id comes from author(user) object,
         // and author is in every post as property(has an ID)
         return user.id === parent.author
+      })
+    },
+
+    comments(parent, args, ctx, info) {
+      //find all comments that match up with this post
+      return comments.filter((comment) => {
+        // comment.post is post's ID,
+        // and the parent is the Post (in which type Post we are now
+        // and declared as type Post with fields ID, title, body,published and two in this Post resolver>> author and comments.)
+        return comment.post === parent.id
+        // if match then the comment is associated with particular post
       })
     }
   },
@@ -138,6 +189,33 @@ const resolvers = {
       return posts.filter((post) => {
         //post is associeated with user >>>
         return post.author === parent.id
+      })
+    },
+    comments(parent, args, ctx, info) {
+      return comments.filter((comment) => {
+        // return true if comment belongs to certain user.
+        // parent.id means user's id and  comment.author looks for
+        // id of the field >> author: '3' in the array of comments objects
+        return comment.author === parent.id
+      })
+    }
+  },
+
+  Comment: {
+    author(parent, args, ctx, info) {
+      return users.find((user) => {
+        // users ID matches comment's author's ID
+        // parent holds the instances from the comments array?
+        return user.id === parent.author
+      })
+    },
+
+    // return the post given the comment
+    post(parent, args, ctx, info) {
+      //
+      return posts.find((post) => {
+        //parent.post is a field value set up for each comment
+        return post.id === parent.post
       })
     }
   }
