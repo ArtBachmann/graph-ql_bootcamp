@@ -1,4 +1,5 @@
 import { GraphQLServer } from 'graphql-yoga'
+import uuidv4 from 'uuid'
 
 // Scalar types: String, Boolean, Int, Float, ID
 
@@ -69,6 +70,8 @@ const comments = [{
 //  *** <users>  has a non scalar type User just like ... little bit //confusing yet.
 // *** If one of the fields is a non-scalar type >> posts: [Post],
 // then custom resolver function must be set up!!!
+// -----------------------------------------
+// Mutations >> Operation name and a list of arguments.
 const typeDefs = `
   type Query {    
     users(query: String): [User!]!
@@ -76,6 +79,12 @@ const typeDefs = `
     comments: [Comment!]!
     me: User!
     post: Post!   
+  }
+ 
+  type Mutation {
+    createUser(name: String!, email: String!, age: Int): User!
+    createPost(title: String!, body: String!, published: Boolean, author: ID!): Post!
+    createComment(text: String!, author: ID!, post: ID!): Comment!
   }
 
   type User {
@@ -156,6 +165,77 @@ const resolvers = {
         body: ' ',
         published: true
       }
+    }
+  },
+
+  // Two sides of every mutation >>
+  // Client operation and the server definition
+  Mutation: {
+    createUser(parent, args, ctx, info) {
+      // some is an array method, retuns true if email is
+      // already in use. args.email is what we want to register.
+      const emailTaken = users.some((user) => user.email === args.email)
+
+      // throw an error if email true >> (is taken)
+      if (emailTaken) {
+        throw new Error('Email is taken')
+      }
+      // if email is not taken >> create new object (user),
+      // and generate new random id.
+      const user = {
+        id: uuidv4(),
+        // name: args.name,
+        // email: args.email,
+        // age: args.age
+        ...args
+      }
+      users.push(user)
+
+      return user
+    },
+
+    createPost(parent, args, ctx, info) {
+      // does authors id matches with one of the users
+      // if returns true means that user really exists
+      const userExists = users.some((user) => user.id === args.author)
+      // throw an error when user does not exists
+      if (!userExists) {
+        throw new Error('User not found')
+      }
+      // if user exists, create new post and save it and return post object.
+      // title and body live on args.title...
+      const post = {
+        id: uuidv4(),
+        // title: args.title,
+        // body: args.body,
+        // published: args.published,
+        // author: args.author
+        ...args
+      }
+      // add new post to the existing post array.
+      posts.push(post)
+      // after addin new post it is returned
+      return post
+    },
+
+    createComment(parent, args, ctx, info) {
+      // check if the user actually exists??
+      const userExists = users.some((user) => user.id === args.author)
+      const postExists = posts.some((post) =>
+        post.id === args.post && post.published) // === true >> same
+
+
+      if (!userExists || !postExists) {
+        throw new Error('Unable to find user and post')
+      }
+
+      const comment = {
+        id: uuidv4(),
+        ...args
+      }
+      comments.push(comment)
+
+      return comment
     }
   },
 
